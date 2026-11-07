@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>射龍門GAME</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f1f5f9;
+            color: #334155;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+
+        .game-window {
+            width: 1120px;
+            max-width: 96vw;
+            height: 630px;
+            max-height: 96vh;
+            background-color: #ffffff;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.06);
+            display: grid;
+            grid-template-columns: 62% 38%;
+            grid-template-rows: 70px 1fr 120px;
+            overflow: hidden;
+            border: 1px solid #ffffff;
+        }
+
+        .grid-box {
+            padding: 20px 24px;
+            display: flex;
+            position: relative;
+        }
+        .border-r { border-right: 1.5px dashed #e2e8f0; }
+        .border-b { border-bottom: 1.5px dashed #e2e8f0; }
+
+        /* 【左上】標題與狀態區 */
+        .area-title {
+            grid-column: 1 / 2;
+            grid-row: 1 / 2;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .title-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .area-title h1 {
+            font-size: 1.6em;
+            font-weight: 700;
+            color: #0f172a;
+            letter-spacing: 0.5px;
+        }
+        .timer-display {
+            font-size: 1.2em;
+            font-weight: 800;
+            color: #dc2626;
+            background-color: #fef2f2;
+            border: 1.5px solid #fca5a5;
+            padding: 4px 12px;
+            border-radius: 10px;
+            display: none;
+            font-family: monospace;
+        }
+
+        .status-badge {
+            background-color: #f1f5f9;
+            color: #64748b;
+            font-size: 0.85em;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        /* 【左中】牌桌區 */
+        .area-cards {
+            grid-column: 1 / 2;
+            grid-row: 2 / 3;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .card-area {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        .card-container {
+            width: 130px;
+            height: 185px;
+            perspective: 1000px;
+            flex-shrink: 0;
+        }
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+            transform-style: preserve-3d;
+            border-radius: 12px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+        }
+        .card-container.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 12px;
+            box-sizing: border-box;
+            background-color: #ffffff;
+        }
+
+        .card-front {
+            background-color: #b91c1c;
+            background-image: radial-gradient(#991b1b 20%, transparent 20%), radial-gradient(#991b1b 20%, transparent 20%);
+            background-size: 8px 8px;
+            background-position: 0 0, 4px 4px;
+            border: 4px solid #ffffff;
+            box-shadow: inset 0 0 0 1px #e2e8f0;
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            color: #0f172a;
+            border: 1px solid #e2e8f0;
+        }
+        .card-back.red {
+            color: #dc2626;
+        }
+
+        .card-corner {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1;
+            font-weight: 700;
+        }
+        .card-corner.top-left { align-self: flex-start; }
+        .card-corner.bottom-right { align-self: flex-end; transform: rotate(180deg); }
+        .corner-value { font-size: 1.3em; }
+        .corner-suit { font-size: 1.1em; margin-top: 2px; }
+
+        .card-center-suit {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3em;
+            pointer-events: none;
+            opacity: 0.95;
+        }
+        
+        #message {
+            margin-top: 20px;
+            font-weight: 500;
+            font-size: 1em;
+            color: #64748b;
+            text-align: center;
+            min-height: 24px;
+        }
+
+        /* 【左下】底池區 */
+        .area-pot {
+            grid-column: 1 / 2;
+            grid-row: 3 / 4;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+        }
+        .pot-inputs-container {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+        .pot-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 1.05em;
+            color: #334155;
+        }
+        .pot-group input {
+            width: 120px;
+            height: 48px;
+            padding: 0 12px;
+            font-size: 1.1em;
+            font-weight: 700;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            background-color: #ffffff;
+            color: #0f172a;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .btn-settings-trigger {
+            background-color: #facc15;
+            color: #0f172a;
+            font-size: 1em;
+            font-weight: 700;
+            padding: 0 20px;
+            height: 48px;
+            border-radius: 14px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-settings-trigger:hover {
+            background-color: #eab308;
+        }
+
+        /* 【右上】玩家列表 */
+        .area-players {
+            grid-column: 2 / 3;
+            grid-row: 1 / 3;
+            flex-direction: column;
+        }
+        .players-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .players-header h3 {
+            font-size: 1.1em;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .player-count {
+            font-size: 0.85em;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+        .player-list {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-right: 4px;
+        }
+        .player-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background-color: #f8fafc;
+            border: 1px solid #f1f5f9;
+            border-radius: 14px;
+            font-size: 0.95em;
+        }
+        .player-item.active {
+            background-color: #ffffff;
+            border-color: #2563eb;
+            font-weight: 700;
+        }
+        .player-name-box { display: flex; align-items: center; gap: 6px; flex: 1; }
+        .player-name-input { border: none; background: transparent; font-size: 0.95em; font-weight: inherit; color: #0f172a; width: 110px; outline: none; }
+        .player-info { display: flex; align-items: center; gap: 8px; }
+        .chip-badge { background-color: #f1f5f9; padding: 4px 12px; border-radius: 20px; font-weight: 700; font-size: 0.9em; color: #334155; border: none; text-align: right; width: 80px; outline: none; }
+
+        .add-player-box { display: flex; gap: 8px; margin-top: 12px; }
+        .add-player-box input { height: 42px; padding: 0 12px; border: 1px solid #e2e8f0; border-radius: 12px; font-size: 0.9em; outline: none; }
+
+        /* 【右下】動作控制按鈕區 */
+        .area-controls {
+            grid-column: 2 / 3;
+            grid-row: 3 / 4;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 8px;
+        }
+        
+        button {
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 0.95em;
+            cursor: pointer;
+            background-color: #2563eb;
+            color: #ffffff;
+            transition: all 0.15s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        button:hover { opacity: 0.92; }
+        button:active { transform: scale(0.97); }
+        button:disabled { background-color: #e2e8f0 !important; color: #94a3b8 !important; cursor: not-allowed; transform: none !important; }
+
+        .btn-up { background-color: #10b981; }
+        .btn-down { background-color: #f59e0b; }
+        .btn-reset { background-color: #ef4444; }
+        .btn-info { background-color: #9333ea; }
+        .btn-allin { background-color: #eab308; color: #ffffff; }
+        .btn-sm { padding: 0 12px; font-size: 0.85em; background-color: #f1f5f9; color: #334155; }
+        .btn-del { background-color: transparent; color: #94a3b8; border: none; padding: 2px 6px; font-size: 1.1em; }
+
+        /* ---------------------------------------------------- */
+        /* 🎨 純白簡潔風格設定 Modal                            */
+        /* ---------------------------------------------------- */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background-color: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(2px);
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .minimal-settings-card {
+            background-color: #ffffff;
+            width: 480px;
+            max-width: 90vw;
+            border-radius: 16px;
+            overflow: hidden;
+            padding: 24px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            border: 1px solid #000000;
+            color: #000000;
+        }
+
+        /* 設定 Modal 頂部 Header 網格區 */
+        .minimal-grid-header {
+            display: grid;
+            grid-template-columns: 1fr 100px;
+            border-bottom: 2px dashed #000000;
+            padding-bottom: 12px;
+            align-items: center;
+        }
+        .minimal-title {
+            font-size: 1.8em;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+        .minimal-close-btn {
+            background: none;
+            border: none;
+            font-size: 1.8em;
+            font-weight: 400;
+            cursor: pointer;
+            text-align: right;
+            color: #000000;
+        }
+
+        /* 倒數計時 Modal 專用頂部 Header 網格區 */
+        .timer-grid-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-bottom: 2px dashed #000000;
+            padding-bottom: 12px;
+            align-items: center;
+        }
+        .timer-grid-header .header-left {
+            border-right: 2px dashed #000000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .timer-grid-header .header-right {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .timer-header-title {
+            font-size: 1.5em;
+            font-weight: 900;
+            color: #facc15;
+            text-shadow: 
+                -1px -1px 0 #000,  
+                 1px -1px 0 #000,
+                -1px  1px 0 #000,
+                 1px  1px 0 #000;
+            text-align: center;
+        }
+
+        /* 中間按鈕區 */
+        .minimal-grid-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-bottom: 2px dashed #000000;
+            padding: 24px 0;
+            gap: 16px;
+            align-items: center;
+        }
+        .yellow-btn-capsule {
+            background-color: #facc15;
+            color: #000000;
+            font-size: 1.1em;
+            font-weight: 700;
+            padding: 10px 20px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .minimal-placeholder-text {
+            text-align: center;
+            font-size: 1.4em;
+            font-weight: 700;
+            color: #000000;
+        }
+
+        /* 大文字區域 */
+        .minimal-main-banner {
+            text-align: center;
+            font-size: 2em;
+            font-weight: 900;
+            padding: 36px 0;
+            border-bottom: 2px dashed #000000;
+            letter-spacing: 2px;
+        }
+
+        /* 頁尾區域 */
+        .minimal-grid-footer {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            padding-top: 16px;
+            align-items: center;
+        }
+        .footer-col-left {
+            border-right: 2px dashed #000000;
+            padding-right: 12px;
+        }
+        .footer-game-title {
+            font-size: 1.05em;
+            font-weight: 800;
+            color: #ca8a04;
+        }
+        .footer-author-text {
+            font-size: 0.9em;
+            font-weight: 700;
+            color: #ca8a04;
+            margin-top: 2px;
+        }
+        .footer-col-right {
+            padding-left: 12px;
+            font-size: 0.95em;
+            font-weight: 800;
+            color: #ca8a04;
+            line-height: 1.3;
+        }
+
+        /* 時分秒調整介面 */
+        .time-adjust-container {
+            display: flex;
+            justify-content: space-around;
+            padding: 20px 0;
+            border-bottom: 2px dashed #000000;
+        }
+        .time-unit-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+        .time-unit-box label {
+            font-size: 0.85em;
+            font-weight: 700;
+            color: #64748b;
+        }
+        .time-unit-box input {
+            width: 70px;
+            height: 48px;
+            text-align: center;
+            font-size: 1.4em;
+            font-weight: 800;
+            border: 1.5px solid #000000;
+            border-radius: 10px;
+            outline: none;
+        }
+
+        /* 計時結束彈窗 */
+        .alert-modal-card {
+            background-color: #ffffff;
+            width: 440px;
+            max-width: 90vw;
+            height: 220px;
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .alert-message-text {
+            font-size: 1.5em;
+            font-weight: 800;
+            color: #000000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .alert-close-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 24px;
+            background-color: #facc15;
+            color: #000000;
+            font-size: 1.1em;
+            font-weight: 800;
+            padding: 8px 24px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+        }
+
+        /* 規則 Modal 說明 */
+        .subtitle-box { background-color: #f8fafc; color: #334155; padding: 14px; border-radius: 12px; margin-top: 16px; min-height: 60px; display: flex; align-items: center; justify-content: center; font-size: 0.9em; line-height: 1.4; border: 1px solid #f1f5f9; }
+        .progress-bar { width: 100%; height: 6px; background-color: #f1f5f9; border-radius: 3px; margin-top: 16px; overflow: hidden; }
+        .progress-fill { height: 100%; width: 0%; background-color: #2563eb; transition: width 1s linear; }
+        .modal-close-btn { background-color: #ef4444; color: white; margin-top: 16px; width: 100%; padding: 12px; }
+
+        @media screen and (max-width: 767px) {
+            html, body { overflow-y: auto; }
+            body { align-items: flex-start; }
+            .game-window { width: 100vw; height: auto; min-height: 100vh; border-radius: 0; display: flex; flex-direction: column; }
+            .border-r { border-right: none; }
+            .border-b { border-bottom: 1.5px dashed #e2e8f0; }
+            .card-container { width: 90px; height: 130px; }
+            .corner-value { font-size: 1em; }
+            .corner-suit { font-size: 0.9em; }
+            .card-center-suit { font-size: 2em; }
+            .area-pot { gap: 12px; padding: 12px; flex-wrap: wrap; }
+            .pot-group input { width: 80px; height: 40px; font-size: 0.95em; }
+            .player-list { max-height: 140px; }
+            button { font-size: 0.85em; min-height: 42px; border-radius: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="game-window">
+    <!-- 1. 左上：標題與計時/狀態區 -->
+    <div class="grid-box border-r border-b area-title">
+        <div class="title-left">
+            <h1>射龍門</h1>
+            <div id="mainTimerDisplay" class="timer-display">⏱️ 00:00:00</div>
+        </div>
+        <div class="status-badge" id="gameStatus">等待開始</div>
+    </div>
+
+    <!-- 2. 左中：牌桌區 -->
+    <div class="grid-box border-r border-b area-cards">
+        <div class="card-area">
+            <div class="card-container" id="card1-container">
+                <div class="card-inner">
+                    <div class="card-front"></div>
+                    <div class="card-back" id="card1-back"></div>
+                </div>
+            </div>
+            <div class="card-container" id="card3-container">
+                <div class="card-inner">
+                    <div class="card-front"></div>
+                    <div class="card-back" id="card3-back"></div>
+                </div>
+            </div>
+            <div class="card-container" id="card2-container">
+                <div class="card-inner">
+                    <div class="card-front"></div>
+                    <div class="card-back" id="card2-back"></div>
+                </div>
+            </div>
+        </div>
+        <div id="message">按下「翻牌」開始對局。</div>
+    </div>
+
+    <!-- 3. 左下：底池與下注區 -->
+    <div class="grid-box border-r area-pot">
+        <div class="pot-inputs-container">
+            <div class="pot-group">
+                <label>底池：</label>
+                <input type="number" id="potSize" value="500">
+            </div>
+            <div class="pot-group">
+                <label>下注：</label>
+                <input type="number" id="betAmount" value="100" min="1">
+            </div>
+        </div>
+        <button class="btn-settings-trigger" onclick="openSettingsModal()">設置</button>
+    </div>
+
+    <!-- 4. 右上：玩家列表區 -->
+    <div class="grid-box border-b area-players">
+        <div class="players-header">
+            <h3>玩家列表</h3>
+            <span class="player-count" id="playerCount">2 人</span>
+        </div>
+        <div class="player-list" id="playerList"></div>
+        <div class="add-player-box">
+            <input type="text" id="newPlayerName" placeholder="玩家名稱" style="flex:1;">
+            <input type="number" id="newPlayerChips" placeholder="籌碼" value="1000" style="width: 70px;">
+            <button class="btn-sm" onclick="addPlayer()">新增</button>
+        </div>
+    </div>
+
+    <!-- 5. 右下：動作控制按鈕區 -->
+    <div class="grid-box area-controls">
+        <button id="flipBtn" onclick="handleFlip()">翻牌</button>
+        <button id="shootBtn" onclick="shoot('normal')" disabled>射門</button>
+        <button id="guessUpBtn" class="btn-up" onclick="shoot('up')" disabled>猜上</button>
+        <button id="guessDownBtn" class="btn-down" onclick="shoot('down')" disabled>猜下</button>
+
+        <button id="passBtn" class="btn-sm" onclick="pass()" disabled>PASS</button>
+        <button class="btn-reset" onclick="resetGame()">重置</button>
+        <button id="allInBtn" class="btn-allin" onclick="allInShoot()" disabled>All in</button>
+        <button class="btn-info" onclick="startDemo()">規則</button>
+    </div>
+</div>
+
+<!-- 🖼️ 1. 純白簡潔風格設定 Modal -->
+<div id="settingsModal" class="modal">
+    <div class="minimal-settings-card">
+        <div class="minimal-grid-header">
+            <div class="minimal-title">設定</div>
+            <button class="minimal-close-btn" onclick="closeSettingsModal()">X</button>
+        </div>
+        
+        <div class="minimal-grid-body">
+            <button class="yellow-btn-capsule" onclick="openTimerModal()">時間倒數</button>
+            <div class="minimal-placeholder-text">？ ？ ？</div>
+        </div>
+
+        <div class="minimal-main-banner">
+            其餘未來更新
+        </div>
+
+        <div class="minimal-grid-footer">
+            <div class="footer-col-left">
+                <div class="footer-game-title">射龍門遊戲</div>
+                <div class="footer-author-text">作者: @ohyeah_123</div>
+            </div>
+            <div class="footer-col-right">
+                有多少願望，<br>人們就會有多少幸福
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ⏱️ 2. 時間倒數設定 Modal（依要求修正頂部標題列） -->
+<div id="timerModal" class="modal">
+    <div class="minimal-settings-card">
+        <div class="timer-grid-header">
+            <div class="header-left">
+                <button class="minimal-close-btn" style="font-size:1.4em; font-weight:700;" onclick="backToSettingsModal()">返回</button>
+            </div>
+            <div class="header-right">
+                <div class="timer-header-title">倒數計時</div>
+            </div>
+        </div>
+
+        <div class="time-adjust-container">
+            <div class="time-unit-box">
+                <label>小時</label>
+                <input type="number" id="inputHours" min="0" max="23" value="0">
+            </div>
+            <div class="time-unit-box">
+                <label>分鐘</label>
+                <input type="number" id="inputMinutes" min="0" max="59" value="0">
+            </div>
+            <div class="time-unit-box">
+                <label>秒數</label>
+                <input type="number" id="inputSeconds" min="0" max="59" value="0">
+            </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-around; margin: 16px 0;">
+            <button class="btn-sm" onclick="quickAddTimer(60)">+1分鐘</button>
+            <button class="btn-sm" onclick="quickAddTimer(300)">+5分鐘</button>
+            <button class="btn-sm" onclick="quickAddTimer(600)">+10分鐘</button>
+        </div>
+
+        <div style="padding-top: 12px; border-top: 2px dashed #000; text-align:center;">
+            <button class="yellow-btn-capsule" style="width:100%; padding:12px;" onclick="confirmTimerSettings()">確定並開始</button>
+        </div>
+    </div>
+</div>
+
+<!-- ⏱️ 3. 計時結束中央提醒 Modal -->
+<div id="timerAlertModal" class="modal">
+    <div class="alert-modal-card">
+        <div class="alert-message-text">
+            <span>⏱️</span> 計時結束，遊戲已重置
+        </div>
+        <button class="alert-close-btn" onclick="closeTimerAlert()">關閉</button>
+    </div>
+</div>
+
+<!-- 規則說明 Modal -->
+<div id="demoModal" class="modal">
+    <div class="minimal-settings-card" style="width:520px;">
+        <div class="minimal-grid-header">
+            <h3 style="font-size:1.1em;">🎬 規則說明與情境示範</h3>
+            <span id="demoTimer" style="font-weight:700; color:#2563eb; text-align:right;">60s</span>
+        </div>
+
+        <div class="card-area" style="margin-top: 10px;">
+            <div class="card-container" id="demo-card1-container" style="width:90px; height:130px;">
+                <div class="card-inner"><div class="card-front"></div><div class="card-back" id="demo-card1-back"></div></div>
+            </div>
+            <div class="card-container" id="demo-card3-container" style="width:90px; height:130px;">
+                <div class="card-inner"><div class="card-front"></div><div class="card-back" id="demo-card3-back"></div></div>
+            </div>
+            <div class="card-container" id="demo-card2-container" style="width:90px; height:130px;">
+                <div class="card-inner"><div class="card-front"></div><div class="card-back" id="demo-card2-back"></div></div>
+            </div>
+        </div>
+
+        <div class="subtitle-box" id="demoSubtitle">準備開始 60 秒規則示範...</div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <button class="modal-close-btn" onclick="stopDemo()">結束示範</button>
+    </div>
+</div>
+
+<script>
+    const suits = ['♠', '♥', '♦', '♣'];
+    const values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
+    const valueNames = {1:'A', 11:'J', 12:'Q', 13:'K'};
+    const INITIAL_POT = 500;
+
+    let players = [
+        { id: 1, name: '玩家 1', chips: 1000 },
+        { id: 2, name: '玩家 2', chips: 1000 }
+    ];
+    let currentPlayerIndex = 0;
+    let gate1 = null, gate2 = null, target = null;
+    let isCardsRevealed = false;
+    let demoTimeouts = [];
+
+    /* 計時器變數 */
+    let totalTimerSeconds = 0;
+    let timerCountdownInterval = null;
+    let isTimerConfigured = false;
+    let isTimerRunning = false;
+
+    function renderPlayers() {
+        const listEl = document.getElementById('playerList');
+        const countEl = document.getElementById('playerCount');
+        listEl.innerHTML = '';
+        countEl.innerText = `${players.length} 人`;
+
+        players.forEach((p, index) => {
+            const item = document.createElement('div');
+            item.className = `player-item ${index === currentPlayerIndex ? 'active' : ''}`;
+            item.innerHTML = `
+                <div class="player-name-box">
+                    <input type="text" class="player-name-input" value="${p.name}" onchange="updatePlayerName(${p.id}, this.value)">
+                </div>
+                <div class="player-info">
+                    <input type="number" class="chip-badge" value="${p.chips}" onchange="updatePlayerChips(${p.id}, this.value)">
+                    <button class="btn-del" onclick="removePlayer(${p.id})">×</button>
+                </div>
+            `;
+            listEl.appendChild(item);
+        });
+    }
+
+    function updatePlayerName(id, newName) {
+        const p = players.find(player => player.id === id);
+        if (p) p.name = newName.trim() || '未命名';
+    }
+
+    function addPlayer() {
+        const nameInput = document.getElementById('newPlayerName');
+        const chipsInput = document.getElementById('newPlayerChips');
+        const name = nameInput.value.trim() || `玩家 ${players.length + 1}`;
+        const chips = parseInt(chipsInput.value) || 1000;
+
+        players.push({ id: Date.now(), name, chips });
+        nameInput.value = '';
+        renderPlayers();
+    }
+
+    function removePlayer(id) {
+        if (players.length <= 1) {
+            alert('至少需要保留一位玩家！');
+            return;
+        }
+        players = players.filter(p => p.id !== id);
+        if (currentPlayerIndex >= players.length) currentPlayerIndex = 0;
+        renderPlayers();
+    }
+
+    function updatePlayerChips(id, newChips) {
+        const p = players.find(player => player.id === id);
+        if (p) p.chips = parseInt(newChips) || 0;
+    }
+
+    function nextTurn() {
+        if (players.length > 0) {
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+        }
+        renderPlayers();
+    }
+
+    function getCard() {
+        const suit = suits[Math.floor(Math.random() * suits.length)];
+        const val = values[Math.floor(Math.random() * values.length)];
+        return { suit, val, isRed: suit === '♥' || suit === '♦' };
+    }
+
+    function setCardContent(cardId, card, prefix = '') {
+        const backEl = document.getElementById(`${prefix}${cardId}-back`);
+        if (!card) {
+            backEl.innerHTML = '';
+            backEl.className = 'card-back';
+            return;
+        }
+        const valName = valueNames[card.val] || card.val;
+        
+        backEl.innerHTML = `
+            <div class="card-corner top-left">
+                <span class="corner-value">${valName}</span>
+                <span class="corner-suit">${card.suit}</span>
+            </div>
+            <div class="card-center-suit">${card.suit}</div>
+            <div class="card-corner bottom-right">
+                <span class="corner-value">${valName}</span>
+                <span class="corner-suit">${card.suit}</span>
+            </div>
+        `;
+        backEl.className = `card-back ${card.isRed ? 'red' : ''}`;
+    }
+
+    function flipCard(cardId, card, prefix = '') {
+        const container = document.getElementById(`${prefix}${cardId}-container`);
+        if (card) {
+            setCardContent(cardId, card, prefix);
+            container.classList.add('flipped');
+        } else {
+            container.classList.remove('flipped');
+            setTimeout(() => setCardContent(cardId, null, prefix), 300);
+        }
+    }
+
+    function handleFlip() {
+        if (isTimerConfigured && !isTimerRunning && totalTimerSeconds > 0) {
+            startActiveCountdown();
+        }
+
+        if (!isCardsRevealed) {
+            drawGates();
+        } else {
+            coverGatesAndNextTurn();
+        }
+    }
+
+    function drawGates() {
+        if (players.length === 0) return;
+        gate1 = getCard();
+        gate2 = getCard();
+        target = null;
+
+        flipCard('card1', null);
+        flipCard('card2', null);
+        flipCard('card3', null);
+
+        document.getElementById('flipBtn').disabled = true;
+        document.getElementById('gameStatus').innerText = '對局進行中';
+
+        const p = players[currentPlayerIndex];
+
+        setTimeout(() => {
+            flipCard('card1', gate1);
+            setMessage(`輪到 [ ${p.name} ]，翻開左門柱...`);
+        }, 300);
+
+        setTimeout(() => {
+            flipCard('card2', gate2);
+            isCardsRevealed = true;
+
+            document.getElementById('passBtn').disabled = false;
+            document.getElementById('allInBtn').disabled = false;
+
+            if (gate1.val === gate2.val) {
+                document.getElementById('guessUpBtn').disabled = false;
+                document.getElementById('guessDownBtn').disabled = false;
+                setMessage(`門柱皆為 [ ${valueNames[gate1.val] || gate1.val} ]！請選擇【猜上】或【猜下】。`);
+            } else {
+                document.getElementById('shootBtn').disabled = false;
+                setMessage(`門柱已開！請輸入金額點擊【射門】或【PASS】。`);
+            }
+
+            document.getElementById('flipBtn').disabled = true;
+        }, 1800);
+    }
+
+    function coverGatesAndNextTurn() {
+        flipCard('card1', null);
+        flipCard('card2', null);
+        flipCard('card3', null);
+
+        isCardsRevealed = false;
+        nextTurn();
+
+        const p = players[currentPlayerIndex];
+        setMessage(`輪到 [ ${p.name} ]，請點擊【翻牌】。`);
+        document.getElementById('gameStatus').innerText = '等待翻牌';
+    }
+
+    function allInShoot() {
+        const pot = parseInt(document.getElementById('potSize').value) || 0;
+        const p = players[currentPlayerIndex];
+        const allInBet = Math.min(p.chips, pot > 0 ? pot : p.chips);
+        document.getElementById('betAmount').value = allInBet;
+        shoot('normal');
+    }
+
+    function shoot(choice) {
+        const betInput = document.getElementById('betAmount');
+        let bet = parseInt(betInput.value) || 0;
+        let pot = parseInt(document.getElementById('potSize').value) || 0;
+        let p = players[currentPlayerIndex];
+
+        if (bet <= 0 || bet > p.chips) {
+            setMessage('請檢查下注金額！');
+            return;
+        }
+
+        if (!target) target = getCard();
+
+        const min = Math.min(gate1.val, gate2.val);
+        const max = Math.max(gate1.val, gate2.val);
+        let resultMessage = "";
+
+        if (target.val === 7) {
+            const penalty = bet * 2;
+            p.chips -= penalty;
+            pot += penalty;
+            resultMessage = `💀 [ ${p.name} ] 踩中死亡 7！失敗罰雙倍 ${penalty} 入池！點【翻牌】繼續。`;
+        } else if (gate1.val === gate2.val) {
+            if (target.val === gate1.val) {
+                const penalty = bet * 3;
+                p.chips -= penalty;
+                pot += penalty;
+                resultMessage = `💥 [ ${p.name} ] 三條超級撞柱！慘賠 3 倍 ${penalty} 入池！點【翻牌】繼續。`;
+            } else if (choice === 'up' || choice === 'down') {
+                if ((choice === 'up' && target.val > gate1.val) || (choice === 'down' && target.val < gate1.val)) {
+                    const winAmount = Math.min(bet, pot);
+                    p.chips += winAmount;
+                    pot -= winAmount;
+                    resultMessage = `🎉 [ ${p.name} ] 猜對！成功贏得 ${winAmount}。點【翻牌】繼續。`;
+                } else {
+                    p.chips -= bet;
+                    pot += bet;
+                    resultMessage = `[ ${p.name} ] 猜錯！輸掉 ${bet}。點【翻牌】繼續。`;
+                }
+            } else {
+                resultMessage = `🛡️ [ ${p.name} ] 安全過關！退回本金。點【翻牌】繼續。`;
+            }
+        } else {
+            if (target.val > min && target.val < max) {
+                const winAmount = Math.min(bet, pot);
+                p.chips += winAmount;
+                pot -= winAmount;
+                if (pot <= 0) {
+                    pot = 0;
+                    resultMessage = `🎯 [ ${p.name} ] 射中龍門！贏走全彩金！點【翻牌】繼續。`;
+                } else {
+                    resultMessage = `🎉 [ ${p.name} ] 進球！贏得 ${winAmount}。點【翻牌】繼續。`;
+                }
+            } else if (target.val === min || target.val === max) {
+                const penalty = bet * 2;
+                p.chips -= penalty;
+                pot += penalty;
+                resultMessage = `💥 [ ${p.name} ] 慘烈撞柱！賠雙倍 ${penalty} 入池！點【翻牌】繼續。`;
+            } else {
+                p.chips -= bet;
+                pot += bet;
+                resultMessage = `[ ${p.name} ] 沒射中！輸掉 ${bet} 入池。點【翻牌】繼續。`;
+            }
+        }
+
+        document.getElementById('potSize').value = Math.max(0, pot);
+        renderPlayers();
+
+        flipCard('card3', target);
+        setMessage(resultMessage);
+        unlockFlipBtnAfterAction();
+    }
+
+    function pass() {
+        let p = players[currentPlayerIndex];
+
+        flipCard('card1', null);
+        flipCard('card2', null);
+        flipCard('card3', null);
+        isCardsRevealed = false;
+
+        document.getElementById('shootBtn').disabled = true;
+        document.getElementById('guessUpBtn').disabled = true;
+        document.getElementById('guessDownBtn').disabled = true;
+        document.getElementById('passBtn').disabled = true;
+        document.getElementById('allInBtn').disabled = true;
+
+        nextTurn();
+        document.getElementById('flipBtn').disabled = false;
+        document.getElementById('gameStatus').innerText = '等待翻牌';
+
+        const nextP = players[currentPlayerIndex];
+        setMessage(`[ ${p.name} ] PASS。輪到 [ ${nextP.name} ]，請點【翻牌】。`);
+    }
+
+    function unlockFlipBtnAfterAction() {
+        document.getElementById('shootBtn').disabled = true;
+        document.getElementById('guessUpBtn').disabled = true;
+        document.getElementById('guessDownBtn').disabled = true;
+        document.getElementById('passBtn').disabled = true;
+        document.getElementById('allInBtn').disabled = true;
+
+        document.getElementById('flipBtn').disabled = false;
+    }
+
+    function setMessage(msg) {
+        document.getElementById('message').innerText = msg;
+    }
+
+    function resetGame() {
+        players = [
+            { id: 1, name: '玩家 1', chips: 1000 },
+            { id: 2, name: '玩家 2', chips: 1000 }
+        ];
+        currentPlayerIndex = 0;
+        document.getElementById('potSize').value = INITIAL_POT;
+        document.getElementById('betAmount').value = 100;
+        gate1 = gate2 = target = null;
+        isCardsRevealed = false;
+
+        clearInterval(timerCountdownInterval);
+        isTimerConfigured = false;
+        isTimerRunning = false;
+        totalTimerSeconds = 0;
+        document.getElementById('mainTimerDisplay').style.display = 'none';
+
+        flipCard('card1', null);
+        flipCard('card2', null);
+        flipCard('card3', null);
+
+        document.getElementById('flipBtn').disabled = false;
+        document.getElementById('shootBtn').disabled = true;
+        document.getElementById('guessUpBtn').disabled = true;
+        document.getElementById('guessDownBtn').disabled = true;
+        document.getElementById('passBtn').disabled = true;
+        document.getElementById('allInBtn').disabled = true;
+
+        document.getElementById('gameStatus').innerText = '等待開始';
+        renderPlayers();
+        setMessage('按下「翻牌」進行對局。');
+    }
+
+    /* 設定控制與時間計算邏輯 */
+    function openSettingsModal() {
+        document.getElementById('settingsModal').style.display = 'flex';
+    }
+    function closeSettingsModal() {
+        document.getElementById('settingsModal').style.display = 'none';
+    }
+    function openTimerModal() {
+        closeSettingsModal();
+        document.getElementById('timerModal').style.display = 'flex';
+    }
+    function backToSettingsModal() {
+        document.getElementById('timerModal').style.display = 'none';
+        openSettingsModal();
+    }
+
+    function quickAddTimer(sec) {
+        let currentSec = (parseInt(document.getElementById('inputHours').value) || 0) * 3600 +
+                         (parseInt(document.getElementById('inputMinutes').value) || 0) * 60 +
+                         (parseInt(document.getElementById('inputSeconds').value) || 0);
+        currentSec += sec;
+
+        const h = Math.floor(currentSec / 3600);
+        const m = Math.floor((currentSec % 3600) / 60);
+        const s = currentSec % 60;
+
+        document.getElementById('inputHours').value = h;
+        document.getElementById('inputMinutes').value = m;
+        document.getElementById('inputSeconds').value = s;
+    }
+
+    function confirmTimerSettings() {
+        const h = parseInt(document.getElementById('inputHours').value) || 0;
+        const m = parseInt(document.getElementById('inputMinutes').value) || 0;
+        const s = parseInt(document.getElementById('inputSeconds').value) || 0;
+
+        totalTimerSeconds = (h * 3600) + (m * 60) + s;
+
+        if (totalTimerSeconds <= 0) {
+            alert('請輸入有效的倒數時間！');
+            return;
+        }
+
+        isTimerConfigured = true;
+        isTimerRunning = false;
+
+        updateMainTimerText();
+        document.getElementById('mainTimerDisplay').style.display = 'inline-block';
+        document.getElementById('timerModal').style.display = 'none';
+    }
+
+    function updateMainTimerText() {
+        const hrs = Math.floor(totalTimerSeconds / 3600);
+        const mins = Math.floor((totalTimerSeconds % 3600) / 60);
+        const secs = totalTimerSeconds % 60;
+
+        document.getElementById('mainTimerDisplay').innerText = 
+            `⏱️ ${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function startActiveCountdown() {
+        isTimerRunning = true;
+        clearInterval(timerCountdownInterval);
+
+        timerCountdownInterval = setInterval(() => {
+            if (totalTimerSeconds > 0) {
+                totalTimerSeconds--;
+                updateMainTimerText();
+            } else {
+                clearInterval(timerCountdownInterval);
+                isTimerRunning = false;
+                
+                document.getElementById('timerAlertModal').style.display = 'flex';
+                resetGame();
+            }
+        }, 1000);
+    }
+
+    function closeTimerAlert() {
+        document.getElementById('timerAlertModal').style.display = 'none';
+    }
+
+    /* 規則示範邏輯 */
+    function startDemo() {
+        document.getElementById('demoModal').style.display = 'flex';
+        clearDemoTimeouts();
+
+        const subtitle = document.getElementById('demoSubtitle');
+        const fill = document.getElementById('progressFill');
+        const timer = document.getElementById('demoTimer');
+
+        fill.style.transition = 'none';
+        fill.style.width = '0%';
+        setTimeout(() => {
+            fill.style.transition = 'width 60s linear';
+            fill.style.width = '100%';
+        }, 50);
+
+        let second = 60;
+        timer.innerText = `${second}s`;
+        const countdownInterval = setInterval(() => {
+            second--;
+            if (second >= 0) timer.innerText = `${second}s`;
+            else clearInterval(countdownInterval);
+        }, 1000);
+        demoTimeouts.push(countdownInterval);
+
+        const timeline = [
+            { time: 0, fn: () => { resetDemoCards(); subtitle.innerText = "歡迎來到射龍門！進行 60 秒規則簡介。"; }},
+            { time: 3, fn: () => { subtitle.innerText = "【情境一：死亡 7 規則】\n點擊【翻牌】翻開門柱..."; }},
+            { time: 5, fn: () => { flipCard('card1', { suit: '♠', val: 3, isRed: false }, 'demo-'); }},
+            { time: 7, fn: () => { flipCard('card2', { suit: '♦', val: 10, isRed: true }, 'demo-'); subtitle.innerText = "門柱 3 與 10。按下【射門】開出 7..."; }},
+            { time: 11, fn: () => { flipCard('card3', { suit: '♣', val: 7, isRed: false }, 'demo-'); subtitle.innerText = "💀 開出 7 號！觸發「死亡 7」，無視任何情況失敗且罰雙倍！"; }},
+            { time: 17, fn: () => { resetDemoCards(); subtitle.innerText = "【情境二：兩柱相同猜上下/超級撞柱】\n點擊【翻牌】..."; }},
+            { time: 19, fn: () => { flipCard('card1', { suit: '♠', val: 8, isRed: false }, 'demo-'); }},
+            { time: 21, fn: () => { flipCard('card2', { suit: '♦', val: 8, isRed: true }, 'demo-'); subtitle.innerText = "兩柱皆為 8！可選擇【猜上】或【猜下】。"; }},
+            { time: 25, fn: () => { subtitle.innerText = "若選擇【猜上】開出 J 代表成功；若開出第三張 8 則超級撞柱罰 3 倍！"; }},
+            { time: 32, fn: () => { flipCard('card3', { suit: '♥', val: 11, isRed: true }, 'demo-'); subtitle.innerText = "🎉 開出 J (大於8)！猜上成功！"; }},
+            { time: 40, fn: () => { subtitle.innerText = "示範完成！點擊下方按鈕開始體驗對局。"; }}
+        ];
+
+        timeline.forEach(item => {
+            demoTimeouts.push(setTimeout(item.fn, item.time * 1000));
+        });
+    }
+
+    function resetDemoCards() {
+        flipCard('card1', null, 'demo-');
+        flipCard('card2', null, 'demo-');
+        flipCard('card3', null, 'demo-');
+    }
+
+    function clearDemoTimeouts() {
+        demoTimeouts.forEach(id => clearTimeout(id));
+        demoTimeouts = [];
+    }
+
+    function stopDemo() {
+        clearDemoTimeouts();
+        resetDemoCards();
+        document.getElementById('demoModal').style.display = 'none';
+    }
+
+    renderPlayers();
+</script>
+
+</body>
+</html>
